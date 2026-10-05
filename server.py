@@ -30,7 +30,8 @@ def server():
 
         client_socket, client_address = server_socket.accept()
         print(f"[S]: Got a connection request from {client_address}")
-        data_from_client = client_socket.recv(4096).decode('utf-8').splitlines()
+        #data_from_client = client_socket.recv(4096).decode('utf-8').splitlines()
+        data_from_client = recieve_lines(client_socket).decode('utf-8').splitlines()
         data_from_server = []
         print(f"[S]: Data from client: \n{data_from_client}")
         for line in data_from_client: 
@@ -53,10 +54,21 @@ def server():
         # data_sent = ''.join(reversed(data_from_client)).swapcase()
         with client_socket:
             client_socket.sendall(data_sent)
+            client_socket.shutdown(socket.SHUT_WR)
     except OSError as err:
         print(f"[S]: Server error: {err}")
     finally:
         server_socket.close()
+
+def recieve_lines(sock: socket.socket):
+    lines_received = b''
+    while True: 
+        data = sock.recv(1024)
+        if not data: 
+            break
+        lines_received += data
+
+    return lines_received
 
 
 if __name__ == "__main__":
