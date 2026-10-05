@@ -25,17 +25,23 @@ def client():
         print(f"[C]: Socket open error: {err}")
         return
 
+    # TODO: read input from in-proj.txt
     try:
         client_socket.connect((SERVER_HOST, ASSIGNED_PORT))
-        data_from_server = client_socket.recv(4096)
-        print(
-            "[C]: Data received from server: "
-            f"{data_from_server.decode('utf-8')}"
+        with client_socket: 
+            client_socket.sendall(b"1|HELLO\n2|Eva, This Prof is amazing\n")
+            print(f"[C]: Sent data through socket")
+            data_from_server = client_socket.recv(4096)
+            print(
+                "[C]: Data received from server: \n"
+                f"{data_from_server.decode('utf-8')}"
         )
     except OSError as err:
         print(f"[C]: Client error: {err}")
     finally:
         client_socket.close()
+    # TODO: verify the line numbers and received length
+    # TODO: Write all lines to out-proj.txt
 
 
 if __name__ == "__main__":
