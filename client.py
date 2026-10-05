@@ -25,12 +25,19 @@ def client():
         print(f"[C]: Socket open error: {err}")
         return
 
-    # TODO: read input from in-proj.txt
     try:
         client_socket.connect((SERVER_HOST, ASSIGNED_PORT))
         with client_socket: 
-            client_socket.sendall(b"1|HELLO\n2|Eva, This Prof is amazing\n")
-            print(f"[C]: Sent data through socket")
+            # TODO: read input from in-proj.txt
+            with open("in-proj.txt", "r") as f:
+                    data_from_file = f.read()
+                    print(f"[C]: Read data from file: \n{data_from_file}")
+                    for line in data_from_file.splitlines(keepends=False):
+                        tmp = line.split("|", maxsplit=1)
+                        client_message = tmp[0] + "|" + tmp[1] + '\n'
+                        client_socket.sendall(client_message.encode('utf-8'))
+                        print(f"[C]: Sent data through socket")
+
             data_from_server = client_socket.recv(4096)
             print(
                 "[C]: Data received from server: \n"
