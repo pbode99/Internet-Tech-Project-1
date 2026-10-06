@@ -31,25 +31,26 @@ def server():
         client_socket, client_address = server_socket.accept()
         print(f"[S]: Got a connection request from {client_address}")
         #data_from_client = client_socket.recv(4096).decode('utf-8').splitlines()
-        data_from_client = recieve_lines(client_socket).decode('utf-8').splitlines()
+        data_from_client = receive_lines(client_socket).decode('utf-8').splitlines()
         data_from_server = []
-        print(f"[S]: Data from client: \n{data_from_client}")
+        print(f"[S]: Data from client:\n" + "\n".join(data_from_client))
         for line in data_from_client: 
             tmp = line.split("|", maxsplit=1) 
-            actual_length = len(tmp[1])
+            transformed = "".join(reversed(tmp[1])).swapcase()
+            actual_length = len(transformed.encode("utf-8"))
             if random.random() < 0.10:
                 reported_length = actual_length + random.randint(1, 1000)
             else:
                 reported_length = actual_length
             #tmp[1] = reversed(tmp[1])
             # print(f"[S]: tmp = {tmp[1]}")
-            new_line = tmp[0] + f"|{reported_length}|" + "".join(reversed(tmp[1])).swapcase() + '\n'
+            new_line = tmp[0] + f"|{reported_length}|" + transformed + '\n'
             print(f"[S]: Reformatted line: {new_line.strip('\n')}")
             data_from_server.append(new_line)
         data_sent = "".join(data_from_server)
         print(f"[S]: Reformatted data: {data_sent.strip('\n')}")
         data_sent = data_sent.encode("utf-8")
-        print(f"[S]: Sending to client: {data_sent}")
+        print(f"[S]: Sending to client:\n{data_sent.decode('utf-8')}")
         # also can do: 
         # data_sent = ''.join(reversed(data_from_client)).swapcase()
         with client_socket:
@@ -60,7 +61,7 @@ def server():
     finally:
         server_socket.close()
 
-def recieve_lines(sock: socket.socket):
+def receive_lines(sock: socket.socket):
     lines_received = b''
     while True: 
         data = sock.recv(1024)
