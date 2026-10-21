@@ -7,13 +7,14 @@ separate client.py and server.py programs.
 
 import random
 import socket
+import sys
 import threading
 import time
 
 
 # Replace this value with the TCP port assigned to your team.
 ASSIGNED_PORT = 30011
-SERVER_HOST = "127.0.0.1"
+SERVER_HOST = sys.argv[1] if len(sys.argv) > 1 else "localhost"
 
 
 

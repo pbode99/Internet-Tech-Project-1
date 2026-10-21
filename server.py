@@ -10,7 +10,6 @@ import time
 
 # Replace this value with the TCP port assigned to your team.
 ASSIGNED_PORT = 30011
-SERVER_HOST = "127.0.0.1"
 
 
 def server():
@@ -23,9 +22,9 @@ def server():
         return
 
     try:
-        server_socket.bind((SERVER_HOST, ASSIGNED_PORT))
+        server_socket.bind(("", ASSIGNED_PORT))
         server_socket.listen(1)
-        print(f"[S]: Server host is {SERVER_HOST}")
+        print("[S]: Server listening on all interfaces")
         print(f"[S]: Server port is {ASSIGNED_PORT}")
 
         client_socket, client_address = server_socket.accept()
