@@ -2,17 +2,18 @@ import socket
 import struct
 import random
 import json
+import sys
 
 # Example query spec as JSON
 dns_query_spec = {
-    "id": random.randint(0, 65535),
+    "id": 1337,
     "qr": 0,      # query
     "opcode": 0,  # standard query
     "rd": 1,      # recursion desired
     "questions": [
         {
-            "qname": "ilab1.cs.rutgers.edu",
-            "qtype": 1,   # Arecord
+            "qname": "example.com",
+            "qtype": 2,   # NS record
             "qclass": 1   # IN
         }
     ]
@@ -46,6 +47,46 @@ def build_query(query_spec):
     return header + question_bytes
 
 
+def parse_name(data, offset):
+    # Returns (name, offset just past the name), following compression pointers
+    labels = []
+    jumped = False
+    end_offset = offset
+    while True:
+        length = data[offset]
+        if (length & 0xC0) == 0xC0:  # pointer: first two bits 11
+            if not jumped:
+                end_offset = offset + 2
+            offset = ((length & 0x3F) << 8) | data[offset + 1]
+            jumped = True
+        elif length == 0:
+            if not jumped:
+                end_offset = offset + 1
+            break
+        else:
+            labels.append(data[offset + 1:offset + 1 + length].decode())
+            offset += length + 1
+    return ".".join(labels), end_offset
+
+
+def parse_records(data, offset, count):
+    records = []
+    for _ in range(count):
+        name, offset = parse_name(data, offset)
+        atype, aclass, ttl, rdlength = struct.unpack("!HHIH", data[offset:offset+10])
+        offset += 10
+        rdata = data[offset:offset+rdlength]
+        if atype == 1 and rdlength == 4:  # A record
+            records.append({"name": name, "type": atype, "ip": socket.inet_ntoa(rdata), "ttl": ttl})
+        elif atype == 28 and rdlength == 16:  # AAAA record
+            records.append({"name": name, "type": atype, "ip": socket.inet_ntop(socket.AF_INET6, rdata), "ttl": ttl})
+        elif atype == 2:  # NS record, rdata is a domain name
+            ns_name, _ = parse_name(data, offset)
+            records.append({"name": name, "type": atype, "ns": ns_name, "ttl": ttl})
+        offset += rdlength
+    return records, offset
+
+
 def parse_response(data):
     response = {}
     (ID, flags, QDCOUNT, ANCOUNT, NSCOUNT, ARCOUNT) = struct.unpack("!HHHHHH", data[:12])
@@ -60,36 +101,19 @@ def parse_response(data):
     response["rcode"] = flags & 0xF
     response["qdcount"] = QDCOUNT
     response["ancount"] = ANCOUNT
+    response["nscount"] = NSCOUNT
+    response["arcount"] = ARCOUNT
 
     offset = 12
     # Skip questions
     for _ in range(QDCOUNT):
-        while data[offset] != 0:
-            offset += data[offset] + 1
-        offset += 1
+        _, offset = parse_name(data, offset)
         offset += 4  # qtype + qclass
 
-    # Parse answers
-    answers = []
-    for _ in range(ANCOUNT):
-        # name (compression: first two bits 11)
-        if (data[offset] & 0xC0) == 0xC0:
-            offset += 2
-        else:
-            while data[offset] != 0:
-                offset += data[offset] + 1
-            offset += 1
-
-        atype, aclass, ttl, rdlength = struct.unpack("!HHIH", data[offset:offset+10])
-        offset += 10
-        rdata = data[offset:offset+rdlength]
-        offset += rdlength
-        print("atype and rdlength",atype,rdlength,type(rdata))
-        '''
-		 TODO  Add code to extract IPv4 address or IPv6 address based on atype and rdlength
-		 Answer should contain three fields "type","ip", and "ttl"
-        '''
-    response["answers"] = answers
+    # Parse answer, authority, and additional sections
+    response["answers"], offset = parse_records(data, offset, ANCOUNT)
+    response["authority"], offset = parse_records(data, offset, NSCOUNT)
+    response["additional"], offset = parse_records(data, offset, ARCOUNT)
     return response
 
 
@@ -101,4 +125,42 @@ def dns_query(query_spec, server=("8.8.8.8", 53)):
     data, _ = sock.recvfrom(512)
     sock.close()
     result=parse_response(data)
+    if result["tc"] == 1:
+        sys.exit("Error: response was truncated")
+    if result["ra"] == 0:
+        sys.exit("Error: server does not support recursion")
     return result
+
+
+def query_ns(domain):
+    query_spec = {
+        "id": 1337,
+        "qr": 0,
+        "opcode": 0,
+        "rd": 1,
+        "questions": [
+            {
+                "qname": domain,
+                "qtype": 2,   # NS record
+                "qclass": 1
+            }
+        ]
+    }
+    response = dns_query(query_spec)
+    # NS names can be in the answer or authority section
+    ns_names = [r["ns"] for r in response["answers"] + response["authority"] if r["type"] == 2]
+    # Match NS names with glue A/AAAA records in the additional section
+    glue = {}
+    for r in response["additional"]:
+        if r["type"] in (1, 28):
+            glue.setdefault(r["name"], []).append(r["ip"])
+    response["nameservers"] = [{"ns": ns, "glue": glue.get(ns, [])} for ns in ns_names]
+    return response
+
+
+if __name__ == "__main__":
+    domain = sys.argv[1] if len(sys.argv) > 1 else "example.com"
+    response = query_ns(domain)
+    print(json.dumps(response, indent=2))
+    with open("output_partB.txt", "w") as out:
+        out.write(json.dumps(response, indent=2) + "\n")

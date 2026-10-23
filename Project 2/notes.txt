@@ -1,0 +1,36 @@
+ID: always 1337
+    16 bits (Total num of bits)
+
+16 bits broken down into header fields:
+----------------------------------------------------------------------------------------
+QR: 0 for query, 1 for response
+    1 bit
+OPCODE: specifies the type of query (always 0 for standard query)
+    4 bits
+AA: "1" if responding server is an authoritative server for the domain name in question
+    1 bit
+TC: Exit and return error if a message was truncated (1)
+    1 bit
+RD [Recursion Desired]: If recursion is desired, set to 1 (will be set to 1 for parts A and B)
+    1 bit
+RA [Recursion Available]: Set to 1 if recurisve querying is available in the name server
+    1 bit
+Z: reserved for future use (not used in part A)
+    3 bits
+RCODE (Response Code): 4 bits
+    0 No error condition
+    1 Format error - The name server was unable to interpret the query.
+    2 Server failure - The name server was unable to process this query due to a problem with
+    the name server.
+    3 Name Error - Meaningful only for responses from an authoritative name server, this code
+    signifies that the domain name referenced in the query does not exist.
+    4 Not Implemented - The name server does not support the requested kind of query.
+    5 Refused - The name server refuses to perform the specified operation for policy reasons.
+
+unsigned 16 bit ints:
+
+QDCOUNT: num of entires in questions section
+ANCOUNT: num of resource records in answer section
+NSCOUNT: num of server resource records in authority records section
+ARCOUNT: num of resource records in the additonal records section
+
