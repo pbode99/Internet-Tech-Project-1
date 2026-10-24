@@ -18,7 +18,7 @@ dns_query_spec = {
     "rd": 0,      # recursion desired
     "questions": [
         {
-            "qname": "www.princeton.edu",
+            "qname": "www.example.com",
             "qtype": 1,   # A  record
             "qclass": 1   # IN
         }
@@ -177,22 +177,37 @@ def iterative_resolve(query_spec):
             "rd": 0,
             "questions": [{"qname": query_spec, "qtype": 1, "qclass": 1}]
         }
-
     current_server = ROOT_SERVERS[0]
     while True:
         response = dns_query(query_spec, server=(current_server, 53))
-
-        # TODO: Check if response has answer A return it
-        # TODO: Else, extract first NS glue record and update `server`
-        # TODO: If no glue record found, raise error
+        # Check for Truncation flag or DNS Error Response
+        if response["tc"] == 1:
+            print("[Warning] Truncated response received (TC = 1). Proceeding with available glue records.")
+        if response["rcode"] != 0:
+            raise RuntimeError(f"Server returned error RCODE {response['rcode']}")
+        # 1. Answer received
+        if response["ancount"] > 0:
+            return response
+        # 2. Referral received
+        if response["nscount"] > 0:
+            target_ns = response["authorities"][0]["nsname"]
+            # Look up matching glue IP in Additional records
+            glue_ip = None
+            for add in response["additionals"]:
+                if add["atype"] == 1 and add["hostname"] == target_ns:
+                    glue_ip = add["ip"]
+                    break
+            if not glue_ip:
+                raise RuntimeError(f"Glue record missing for NS: {target_ns}")
+            current_server = glue_ip
+        else:
+            raise RuntimeError("No answer received and no further delegation available.")
 
     return None
         
 if __name__ == "__main__":
-    domain = "example.com"
-    print(iterative_resolve(domain))
     response = iterative_resolve(dns_query_spec)
-    print(json.dumps(response,indent=2))
-    with open("dns_response.json", "w") as f:
+    print(json.dumps(response, indent=2))
+    with open("output_partC.txt", "w") as f:
         json.dump(response, f, indent=2)
-    print("Response saved to dns_response.json")
+    print("Response saved to output_partC.txt")

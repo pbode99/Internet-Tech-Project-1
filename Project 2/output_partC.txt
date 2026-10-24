@@ -1,0 +1,34 @@
+{
+  "id": 1337,
+  "qr": 1,
+  "opcode": 0,
+  "aa": 1,
+  "tc": 0,
+  "rd": 0,
+  "ra": 0,
+  "rcode": 0,
+  "qdcount": 1,
+  "ancount": 2,
+  "nscount": 0,
+  "arcount": 0,
+  "answers": [
+    {
+      "hostname": "www.example.com",
+      "ttl": 300,
+      "atype": 1,
+      "rtype": "A",
+      "ip": "172.66.147.243",
+      "nsname": null
+    },
+    {
+      "hostname": "www.example.com",
+      "ttl": 300,
+      "atype": 1,
+      "rtype": "A",
+      "ip": "104.20.23.154",
+      "nsname": null
+    }
+  ],
+  "authorities": [],
+  "additionals": []
+}
