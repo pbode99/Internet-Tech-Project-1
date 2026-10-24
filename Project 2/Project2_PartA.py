@@ -139,7 +139,7 @@ if __name__ == "__main__":
     # Accept either a plain list of questions or {"questions": [...]}
     questions = query_json["questions"] if isinstance(query_json, dict) else query_json
 
-    with open("output.txt", "w") as out:
+    with open("output_partA.txt", "w") as out:
         for q in questions:
             query_spec = {
                 "id": 1337,
