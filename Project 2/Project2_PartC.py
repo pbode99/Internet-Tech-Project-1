@@ -18,7 +18,7 @@ dns_query_spec = {
     "rd": 0,      # recursion desired
     "questions": [
         {
-            "qname": "www.example.com",
+            "qname": "ilab1.cs.rutgers.edu",
             "qtype": 1,   # A  record
             "qclass": 1   # IN
         }
@@ -190,15 +190,23 @@ def iterative_resolve(query_spec):
             return response
         # 2. Referral received
         if response["nscount"] > 0:
-            target_ns = response["authorities"][0]["nsname"]
-            # Look up matching glue IP in Additional records
             glue_ip = None
-            for add in response["additionals"]:
-                if add["atype"] == 1 and add["hostname"] == target_ns:
-                    glue_ip = add["ip"]
+            selected_ns = None
+            # Find the first NS in authorities that has a matching glue A-record in additionals
+            for auth in response["authorities"]:
+                ns_name = auth.get("nsname")
+                if not ns_name:
+                    continue
+                for add in response["additionals"]:
+                    # Match IPv4 glue record (atype == 1) case-insensitively
+                    if add["atype"] == 1 and add["hostname"].lower() == ns_name.lower():
+                        glue_ip = add["ip"]
+                        selected_ns = ns_name
+                        break
+                if glue_ip:
                     break
             if not glue_ip:
-                raise RuntimeError(f"Glue record missing for NS: {target_ns}")
+                raise RuntimeError("Glue record missing for all authority nameservers.")
             current_server = glue_ip
         else:
             raise RuntimeError("No answer received and no further delegation available.")

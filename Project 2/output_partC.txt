@@ -8,24 +8,16 @@
   "ra": 0,
   "rcode": 0,
   "qdcount": 1,
-  "ancount": 2,
+  "ancount": 1,
   "nscount": 0,
   "arcount": 0,
   "answers": [
     {
-      "hostname": "www.example.com",
-      "ttl": 300,
+      "hostname": "ilab1.cs.rutgers.edu",
+      "ttl": 3600,
       "atype": 1,
       "rtype": "A",
-      "ip": "172.66.147.243",
-      "nsname": null
-    },
-    {
-      "hostname": "www.example.com",
-      "ttl": 300,
-      "atype": 1,
-      "rtype": "A",
-      "ip": "104.20.23.154",
+      "ip": "128.6.13.2",
       "nsname": null
     }
   ],
