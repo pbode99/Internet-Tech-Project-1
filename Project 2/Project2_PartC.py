@@ -4,16 +4,22 @@ import struct
 import random
 import json
 
+ROOT_SERVERS = [
+    "198.41.0.4", # a.root-servers.net
+    "199.9.14.201", # b.root-servers.net
+    "192.33.4.12", # c.root-servers.net
+]
+
 # Example query spec as JSON
 dns_query_spec = {
-    "id": random.randint(0, 65535),
+   "id": 1337,
     "qr": 0,      # query
     "opcode": 0,  # standard query
-    "rd": 1,      # recursion desired
+    "rd": 0,      # recursion desired
     "questions": [
         {
-            "qname": "princeton.edu",
-            "qtype": 2,   # NS record
+            "qname": "www.princeton.edu",
+            "qtype": 1,   # A  record
             "qclass": 1   # IN
         }
     ]
@@ -43,7 +49,6 @@ def build_query(query_spec):
             question_bytes += struct.pack("B", len(label)) + label.encode()
         question_bytes += b"\x00"  # end of qname
         question_bytes += struct.pack("!HH", q["qtype"], q["qclass"])
-
     return header + question_bytes
 
 
@@ -79,13 +84,27 @@ def parse_rr(data, offset):
     atype, aclass, ttl, rdlength = struct.unpack("!HHIH", data[offset:offset+10])
     offset += 10
     rdata = data[offset:offset+rdlength]
+    record={
+        "hostname": name, 
+        "ttl":      ttl, 
+        "atype":    atype, 
+        "rtype":    None, 
+        "ip":       None, 
+        "nsname":   None
+    }
+    match atype:
+        case 1:   # A record
+            record["rtype"] = "A"
+            record["ip"] = socket.inet_ntoa(rdata)
+        case 2:   # NS record
+            record["rtype"] = "NS"
+            record["nsname"], _ = parse_name(data, offset)
+        case 28:  # AAAA record
+            record["rtype"] = "AAAA"
+            record["ip"] = socket.inet_ntop(socket.AF_INET6, rdata)
+        case _:   # Unhandled record types
+            pass
     offset += rdlength
-    record={}
-    ##########
-    ##  Your code here to create a record given data 
-    ## record fields shoud include  hostname, ttl, atype, rtype, ip, nsname
-    #################
-
     return record,offset
 
 
@@ -120,11 +139,21 @@ def parse_response(data):
         rr, offset = parse_rr(data, offset)
         answers.append(rr)
 
-    
+    # Parse Authority RRs
+    authorities = []
+    for _ in range(NSCOUNT):
+        rr, offset = parse_rr(data, offset)
+        authorities.append(rr)
+
+    # Parse Additional RRs
+    additionals = []
+    for _ in range(ARCOUNT):
+        rr, offset = parse_rr(data, offset)
+        additionals.append(rr)    
 
     response["answers"] = answers
-    
-
+    response["authorities"] = authorities
+    response["additionals"] = additionals
     return response
 
 
@@ -138,9 +167,31 @@ def dns_query(query_spec, server=("8.8.8.8", 53)):
     sock.close()
     return parse_response(data)
 
+def iterative_resolve(query_spec):
+    # convert string input to query
+    if isinstance(query_spec, str):
+        query_spec = {
+            "id": 1337,
+            "qr": 0,
+            "opcode": 0,
+            "rd": 0,
+            "questions": [{"qname": query_spec, "qtype": 1, "qclass": 1}]
+        }
 
+    current_server = ROOT_SERVERS[0]
+    while True:
+        response = dns_query(query_spec, server=(current_server, 53))
+
+        # TODO: Check if response has answer A return it
+        # TODO: Else, extract first NS glue record and update `server`
+        # TODO: If no glue record found, raise error
+
+    return None
+        
 if __name__ == "__main__":
-    response = dns_query(dns_query_spec)
+    domain = "example.com"
+    print(iterative_resolve(domain))
+    response = iterative_resolve(dns_query_spec)
     print(json.dumps(response,indent=2))
     with open("dns_response.json", "w") as f:
         json.dump(response, f, indent=2)
