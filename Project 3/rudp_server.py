@@ -1,32 +1,30 @@
 #!/usr/bin/env python3
 """
-rudp_client.py — STUDENT SKELETON
-Goal: Implement a minimal "Reliable UDP" (RUDP) client over UDP (stop-and-wait)
-that streams a World Cup match, one event per packet, to the scoreboard server.
+rudp_server.py — STUDENT SKELETON
+Goal: Implement a minimal "Reliable UDP" (RUDP) server over UDP that keeps
+the live scoreboard for a World Cup match.
 
 YOU MUST IMPLEMENT:
-  1) 3-way handshake:  (you send) SYN(seq=x) -> (expect) SYN-ACK(ack=x+1) -> (you send) ACK(seq=x+1, ack=y+1)
-     - x is YOUR random initial sequence number (ISN); y is the server's
-  2) DATA send loop (stop-and-wait):
-       - send each line of the match feed as one DATA packet
-       - sequence numbers count BYTES: the next seq = this seq + len(payload)
-       - wait for an ACK whose ack number == seq + len(payload)
-       - if timeout or wrong ACK: retransmit (up to RETRIES = 5 tries, then give up)
-  3) Teardown: (you send) FIN -> (expect) FIN-ACK(ack = FIN's seq + 1)
+  1) 3-way handshake:  SYN(seq=x) -> (you send) SYN-ACK(seq=y, ack=x+1) -> (expect) ACK(ack=y+1)
+     - y is YOUR random initial sequence number (ISN)
+  2) DATA handling with byte sequence numbers + an ACK for every DATA
+     - maintain 'expect_seq' (the next in-order byte you expect)
+     - deliver ONLY in-order data to the scoreboard; a duplicate must NOT be delivered
+       (a duplicated GOAL changes the score!)
+     - always reply with ack = expect_seq
+  3) Teardown: (expect) FIN -> (you send) FIN-ACK(ack = FIN's seq + 1)
 
-Usage:  python3 rudp_client.py [match_feed.txt]
+Usage:  python3 rudp_server.py [seed]
+Tips:
+  - Use the provided log() for EVERY packet you send or receive.
+  - Send every reply with send_unreliable() so the network can drop or delay it.
+  - Keep the server single-client and single-threaded for simplicity.
 """
-import random, socket, struct, sys, time
+import random, socket, struct, sys, threading
 
-# ===================== CONFIG (EDIT HOST/PORT) =====================
-SERVER_HOST = '127.0.0.1'      # server IP or hostname
-ASSIGNED_PORT = 30077   # <-- REPLACE with your assigned UDP port (from Canvas)
-SERVER = (SERVER_HOST, ASSIGNED_PORT)
+# ===================== CONFIG (EDIT YOUR PORT) =====================
+ASSIGNED_PORT = 30077  # <-- REPLACE with your assigned UDP port (from Canvas)
 # ==================================================================
-
-# Timing/reliability parameters
-RTO = 0.5          # retransmission timeout (seconds)
-RETRIES = 5        # max tries per packet
 
 # --- Flag bits (1 byte) ---
 SYN, ACK, FIN = 0x01, 0x02, 0x04
@@ -57,76 +55,112 @@ def flag_str(flags: int) -> str:
 
 def log(direction: str, seq: int, ack: int, flags: int, length: int, note: str = ''):
     """Required log format. Wireshark cannot decode our header, so these lines are the record."""
-    print(f'[CLIENT] {direction} seq={seq} ack={ack} flags={flag_str(flags)} len={length}' + (f'  ({note})' if note else ''))
+    print(f'[SERVER] {direction} seq={seq} ack={ack} flags={flag_str(flags)} len={length}' + (f'  ({note})' if note else ''))
 
-def send_recv_with_retry(sock, pkt, is_expected):
-    """
-    Utility: send a packet and wait up to RTO for a reply that passes is_expected(seq, ack, flags, payload).
-    Replies that fail the check are logged and ignored WITHOUT restarting the timer.
-    Retries up to RETRIES times. Returns (seq, ack, flags, payload) on success, None on failure.
-    """
-    seq, ack, flags, ln = struct.unpack(HDR, pkt[:HDR_SZ])
-    for attempt in range(1, RETRIES + 1):
-        sock.sendto(pkt, SERVER)
-        log('SEND', seq, ack, flags, ln, f'try {attempt}/{RETRIES}' if attempt > 1 else '')
-        deadline = time.monotonic() + RTO
-        while (left := deadline - time.monotonic()) > 0:
-            sock.settimeout(left)
-            try:
-                resp, _ = sock.recvfrom(2048)
-            except socket.timeout:
-                break
-            msg = unpack_msg(resp)
-            if msg is None:
-                continue
-            if is_expected(*msg):
-                log('RECV', msg[0], msg[1], msg[2], len(msg[3]))
-                return msg
-            log('RECV', msg[0], msg[1], msg[2], len(msg[3]), 'stale/unexpected, ignored')
-        print(f'[CLIENT] TIMEOUT after {RTO}s')
-    return None
+# ============ SIMULATED UNRELIABLE NETWORK (PROVIDED — DO NOT EDIT) ============
+DROP_PROB = 0.10          # chance a reply is silently dropped
+DELAY_PROB = 0.20         # chance a reply is held back ("VAR review")
+DELAY_MS = (100, 1000)    # how long a held-back reply waits
+net_rng = random.Random(int(sys.argv[1]) if len(sys.argv) > 1 else None)
+
+def send_unreliable(sock, pkt, addr):
+    """Send a reply through a network that sometimes drops or delays it."""
+    r = net_rng.random()
+    if r < DROP_PROB:
+        print('[NET] reply dropped')
+        return
+    if r < DROP_PROB + DELAY_PROB:
+        d = net_rng.randint(*DELAY_MS)
+        print(f'[NET] reply delayed {d} ms (VAR review)')
+        threading.Timer(d / 1000.0, sock.sendto, (pkt, addr)).start()
+        return
+    sock.sendto(pkt, addr)
+
+# ============ SCOREBOARD (PROVIDED — DO NOT EDIT) ============
+class Scoreboard:
+    """Applies match events in the order delivered. A duplicated GOAL changes the score."""
+    def __init__(self):
+        self.score = {}
+        self.events = []
+
+    def apply(self, line: str):
+        self.events.append(line)
+        parts = line.split()
+        if len(parts) >= 4 and parts[1] == 'KICKOFF':
+            self.score = {parts[2]: 0, parts[4]: 0}
+        elif len(parts) >= 3 and parts[1] == 'GOAL':
+            self.score[parts[2]] = self.score.get(parts[2], 0) + 1
+        print(f'[MATCH] {line}' + (f'   >>> {self.board()}' if 'GOAL' in parts[1:2] else ''))
+
+    def board(self) -> str:
+        return '  '.join(f'{t} {g}' for t, g in self.score.items())
+
+    def save(self, path='received_feed.txt'):
+        with open(path, 'w') as f:
+            f.write('\n'.join(self.events) + '\n')
+        print(f'[MATCH] FINAL SCORE: {self.board()}   (events saved to {path})')
+# ============================================================
 
 def main():
-    feed_path = sys.argv[1] if len(sys.argv) > 1 else 'match_feed.txt'
-    with open(feed_path) as f:
-        events = [line.rstrip('\n') for line in f if line.strip()]
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(('0.0.0.0', ASSIGNED_PORT))
+    print(f'[SERVER] Listening on 0.0.0.0:{ASSIGNED_PORT} (UDP)')
 
-    cli = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    state = 'LISTEN'          # LISTEN -> SYN_RCVD -> ESTABLISHED -> (FIN) -> LISTEN
+    client_addr = None
+    client_isn = None         # x, chosen by the client
+    server_isn = None         # y, chosen by you
+    expect_seq = None         # next in-order byte expected from the client
+    board = None              # Scoreboard(), created once the connection is established
+    last_close = None         # (addr, FIN-ACK packet) so a retransmitted FIN still gets answered
 
-    # ============ PHASE 1: HANDSHAKE (YOU IMPLEMENT) ==============
-    # TODO:
-    #   - pick x = random.randint(0, SEQ_MOD - 1) and print it
-    #   - send SYN: seq = x, ack = 0, flags = SYN
-    #   - wait (with retry) for a SYN-ACK whose ack == x + 1
-    #   - on success: y = the SYN-ACK's seq; print it
-    #   - send the final ACK: seq = x + 1, ack = y + 1, flags = ACK (log it!)
-    #   - print('[CLIENT] Connection established')
-    #   - if no valid SYN-ACK after RETRIES tries: print a message and exit
-    # HINT: send_recv_with_retry() takes a function that decides whether a reply is the
-    #       one you are waiting for, e.g.  lambda s, a, fl, p: fl == SYN | ACK and a == seq_add(x, 1)
-    pass  # <-- replace with your handshake code
-    # ===============================================================
+    while True:
+        pkt, addr = sock.recvfrom(2048)
+        msg = unpack_msg(pkt)
+        if msg is None:
+            continue
+        seq, ack, flags, pl = msg
 
-    # ============ PHASE 2: DATA SEND LOOP (YOU IMPLEMENT) =========
-    # TODO:
-    #   - the first DATA seq is x + 1; every DATA carries ack = y + 1 and flags = ACK
-    #   - for each event in events:
-    #       * payload = event.encode()
-    #       * send DATA and wait (with retry) for an ACK with ack == seq + len(payload)
-    #       * on success: seq = seq + len(payload)
-    #       * on failure: print a message and exit
-    pass  # <-- replace with your data send loop
-    # ===============================================================
+        # ============ PHASE 1: HANDSHAKE (YOU IMPLEMENT) ============
+        # TODO:
+        #  - If this is a SYN (flags == SYN) and state == 'LISTEN':
+        #       * remember client_addr = addr and client_isn = seq
+        #       * pick server_isn = random.randint(0, SEQ_MOD - 1)
+        #       * state = 'SYN_RCVD'
+        #       * send SYN-ACK: seq = server_isn, ack = client_isn + 1, flags = SYN | ACK
+        #  - If it is a DUPLICATE SYN from the same client (your SYN-ACK was lost or delayed):
+        #       * resend the SAME SYN-ACK (same server_isn, do not pick a new one)
+        #  - If state == 'SYN_RCVD' and this packet has the ACK flag,
+        #    ack == server_isn + 1 and seq == client_isn + 1:
+        #       * state = 'ESTABLISHED'; expect_seq = client_isn + 1; board = Scoreboard()
+        #       * print('[SERVER] Connection established')
+        #  - Ignore packets from any other address
+        # HINT: use seq_add() for every "+ 1" so numbers wrap at 2^32 like TCP.
+        # HINT: if the client's final ACK is lost, its first DATA packet also carries
+        #       the ACK flag and ack = y + 1. Treat that as completing the handshake too.
+        pass  # <-- replace with your handshake logic
+        # ============================================================
 
-    # ============ PHASE 3: TEARDOWN (YOU IMPLEMENT) ===============
-    # TODO:
-    #   - send FIN: seq = your current seq, ack = y + 1, flags = FIN
-    #   - wait (with retry) for a FIN-ACK whose ack == your seq + 1
-    #   - on success print('[CLIENT] Connection closed')
-    pass  # <-- replace with your teardown code
-    # ===============================================================
+        # ============ PHASE 2: DATA (YOU IMPLEMENT) =================
+        # TODO (only when state == 'ESTABLISHED' and the packet carries a payload):
+        #   - If seq == expect_seq:
+        #       * deliver it: board.apply(pl.decode())
+        #       * expect_seq = seq + len(pl)
+        #   - Else (duplicate or out of order):
+        #       * do NOT deliver it; print that it was a duplicate
+        #   - Either way, reply: seq = server_isn + 1, ack = expect_seq, flags = ACK
+        pass  # <-- replace with your data logic
+        # ============================================================
 
-    cli.close()
+        # ============ PHASE 3: TEARDOWN (YOU IMPLEMENT) =============
+        # TODO (when a FIN arrives with seq == expect_seq):
+        #   - send FIN-ACK: seq = server_isn + 1, ack = FIN's seq + 1, flags = FIN | ACK
+        #   - print('[SERVER] Connection closed') and call board.save()
+        #   - remember last_close = (client_addr, that FIN-ACK packet)
+        #   - reset state: state='LISTEN'; client_addr=None; client_isn=None; server_isn=None; expect_seq=None
+        #   - if a FIN arrives later from last_close's address, resend last_close's FIN-ACK
+        pass  # <-- replace with your teardown logic
+        # ============================================================
 
 if __name__ == '__main__':
     main()
