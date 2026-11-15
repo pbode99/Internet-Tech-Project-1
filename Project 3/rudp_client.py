@@ -20,7 +20,7 @@ import random, socket, struct, sys, time
 
 # ===================== CONFIG (EDIT HOST/PORT) =====================
 SERVER_HOST = '127.0.0.1'      # server IP or hostname
-ASSIGNED_PORT = 30077   # <-- REPLACE with your assigned UDP port (from Canvas)
+ASSIGNED_PORT = 30011   # <-- REPLACE with your assigned UDP port (from Canvas)
 SERVER = (SERVER_HOST, ASSIGNED_PORT)
 # ==================================================================
 
@@ -104,7 +104,33 @@ def main():
     #   - if no valid SYN-ACK after RETRIES tries: print a message and exit
     # HINT: send_recv_with_retry() takes a function that decides whether a reply is the
     #       one you are waiting for, e.g.  lambda s, a, fl, p: fl == SYN | ACK and a == seq_add(x, 1)
-    pass  # <-- replace with your handshake code
+    # pick a random starting sequence number for the client
+    x = random.randint(0, SEQ_MOD - 1)
+    print(f'[CLIENT] client ISN x={x}')
+
+    # build the SYN packet with seq = x and no ack
+    syn_pkt = pack_msg(x, 0, SYN)
+
+    # send the SYN and only accept a SYN-ACK whose ack is x + 1
+    reply = send_recv_with_retry(cli, syn_pkt,
+                                 lambda s, a, fl, p: fl == SYN | ACK and a == seq_add(x, 1))
+
+    # stop the program if no valid SYN-ACK came back after all tries
+    if reply is None:
+        print(f'[CLIENT] no valid SYN-ACK after {RETRIES} tries, giving up')
+        cli.close()
+        sys.exit(1)
+
+    # the seq field of the SYN-ACK is the server's starting sequence number
+    y = reply[0]
+    print(f'[CLIENT] server ISN y={y}')
+    
+    # send the final ACK with seq = x + 1 and ack = y + 1 to finish the handshake
+    ack_seq, ack_num = seq_add(x, 1), seq_add(y, 1)
+    cli.sendto(pack_msg(ack_seq, ack_num, ACK), SERVER)
+    log('SEND', ack_seq, ack_num, ACK, 0)
+
+    print('[CLIENT] Connection established')
     # ===============================================================
 
     # ============ PHASE 2: DATA SEND LOOP (YOU IMPLEMENT) =========
@@ -115,7 +141,29 @@ def main():
     #       * send DATA and wait (with retry) for an ACK with ack == seq + len(payload)
     #       * on success: seq = seq + len(payload)
     #       * on failure: print a message and exit
-    pass  # <-- replace with your data send loop
+    # the first data byte comes right after the SYN, so start at x + 1
+    seq = seq_add(x, 1)
+    # every data packet acknowledges the server's SYN with ack = y + 1
+    data_ack = seq_add(y, 1)
+
+    for event in events:
+        # turn the event text into bytes for sending
+        payload = event.encode()
+        # the ack that confirms this packet arrived is seq + payload length
+        want_ack = seq_add(seq, len(payload))
+
+        # send the data and only accept an ACK with the matching ack number
+        reply = send_recv_with_retry(cli, pack_msg(seq, data_ack, ACK, payload),
+                                     lambda s, a, fl, p, w=want_ack: fl & ACK and a == w)
+
+        # stop the program if the packet was never confirmed
+        if reply is None:
+            print(f'[CLIENT] no ACK for seq={seq} after {RETRIES} tries, giving up')
+            cli.close()
+            sys.exit(1)
+
+        # move forward by the number of bytes just sent
+        seq = want_ack
     # ===============================================================
 
     # ============ PHASE 3: TEARDOWN (YOU IMPLEMENT) ===============
@@ -123,7 +171,20 @@ def main():
     #   - send FIN: seq = your current seq, ack = y + 1, flags = FIN
     #   - wait (with retry) for a FIN-ACK whose ack == your seq + 1
     #   - on success print('[CLIENT] Connection closed')
-    pass  # <-- replace with your teardown code
+    # the FIN uses one sequence number, so the server should reply with ack = seq + 1
+    fin_ack = seq_add(seq, 1)
+
+    # send the FIN and only accept a FIN-ACK whose ack is seq + 1
+    reply = send_recv_with_retry(cli, pack_msg(seq, data_ack, FIN),
+                                 lambda s, a, fl, p: fl == FIN | ACK and a == fin_ack)
+
+    # stop the program if no FIN-ACK came back after all tries
+    if reply is None:
+        print(f'[CLIENT] no FIN-ACK after {RETRIES} tries, giving up')
+        cli.close()
+        sys.exit(1)
+
+    print('[CLIENT] Connection closed')
     # ===============================================================
 
     cli.close()
