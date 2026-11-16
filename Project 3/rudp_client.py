@@ -152,9 +152,9 @@ def main():
         # the ack that confirms this packet arrived is seq + payload length
         want_ack = seq_add(seq, len(payload))
 
-        # send the data and only accept an ACK with the matching ack number
+        # send the data and only accept a pure ACK with the matching ack number
         reply = send_recv_with_retry(cli, pack_msg(seq, data_ack, ACK, payload),
-                                     lambda s, a, fl, p, w=want_ack: fl & ACK and a == w)
+                                     lambda s, a, fl, p, w=want_ack: fl == ACK and a == w)
 
         # stop the program if the packet was never confirmed
         if reply is None:
