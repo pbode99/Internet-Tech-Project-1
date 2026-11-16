@@ -138,6 +138,7 @@ def main():
         # HINT: use seq_add() for every "+ 1" so numbers wrap at 2^32 like TCP.
         # HINT: if the client's final ACK is lost, its first DATA packet also carries
         #       the ACK flag and ack = y + 1. Treat that as completing the handshake too.
+        log('RECV', seq, ack, flags, len(pl))
         if state != 'LISTEN' and addr != client_addr:
             continue
 
