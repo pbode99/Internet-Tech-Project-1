@@ -102,7 +102,7 @@ class Scoreboard:
 # ============================================================
 
 def main():
-    sock = socket.socket(socket.AF_INET, socket.sock_DGRAM)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('0.0.0.0', ASSIGNED_PORT))
     print(f'[SERVER] Listening on 0.0.0.0:{ASSIGNED_PORT} (UDP)')
 
@@ -144,15 +144,15 @@ def main():
         if (flags == SYN and state == 'LISTEN'): 
             client_addr, client_isn = addr, seq 
             server_isn = random.randint(0, SEQ_MOD - 1)
-            print(f'[SERVER] server ISN y={y}')
+            print(f'[SERVER] server ISN y={server_isn}')
             state = 'SYN_RCVD'
-            r_seq , r_ack = server_isn, seq_add(client_isn, 1)
-            send_unreliable(sock, pack_msg(r_seq, r_ack, SYN | ACK), client_addr)
-            log('SEND', r_seq, r_ack, SYN | ACK, 0)
+            r_seq , r_ack , r_flags = server_isn, seq_add(client_isn, 1), SYN | ACK
+            send_unreliable(sock, pack_msg(r_seq, r_ack, r_flags), client_addr)
+            log('SEND', r_seq, r_ack, r_flags, 0)
         elif (flags == SYN and state == 'SYN_RCVD'): 
-            r_seq, r_ack = server_isn, seq_add(client_isn, 1)
-            send_unreliable(sock, pack_msg(r_seq, r_ack, SYN | ACK), client_addr)
-            log('SEND', r_seq, r_ack, SYN | ACK, 0, 'duplicate SYN')
+            r_seq, r_ack , r_flags = server_isn, seq_add(client_isn, 1), SYN | ACK
+            send_unreliable(sock, pack_msg(r_seq, r_ack, r_flags), client_addr)
+            log('SEND', r_seq, r_ack, r_flags, 0, 'duplicate SYN')
         elif (flags == ACK and state == 'SYN_RCVD'): 
             # Check conditions for establishing connection
             if (seq == seq_add(client_isn, 1) and ack == seq_add(server_isn, 1)): 
@@ -179,9 +179,9 @@ def main():
             else: 
                 print(f'[SERVER] ERROR: Duplicate seq number recieved')
                 note = 'duplicate'
-            r_seq, r_ack = seq_add(server_isn, 1), expect_seq 
-            send_unreliable(sock, pack_msg(r_seq, r_ack, ACK), client_addr)
-            log('SEND', r_seq, r_ack, ACK, 0, note)
+            r_seq, r_ack, r_flags = seq_add(server_isn, 1), expect_seq , ACK
+            send_unreliable(sock, pack_msg(r_seq, r_ack, r_flags), client_addr)
+            log('SEND', r_seq, r_ack, r_flags, 0, note)
         # ============================================================
 
         # ============ PHASE 3: TEARDOWN (YOU IMPLEMENT) =============
@@ -191,10 +191,22 @@ def main():
         #   - remember last_close = (client_addr, that FIN-ACK packet)
         #   - reset state: state='LISTEN'; client_addr=None; client_isn=None; server_isn=None; expect_seq=None
         #   - if a FIN arrives later from last_close's address, resend last_close's FIN-ACK
-        if (flags == FIN && seq == expect_seq):
-            seq = seq_add(server_isn, 1) 
-            ack = 
-            send_unreliable(sock, pack_msg(ack_seq, ack_num, FIN | ACK), client_addr)
+        if (flags & FIN and seq == expect_seq and state == 'ESTABLISHED'):
+            r_seq, r_ack, r_flags = seq_add(server_isn, 1), seq_add(seq, 1), FIN | ACK
+            fin_pack = pack_msg(r_seq, r_ack, r_flags)
+            send_unreliable(sock, fin_pack, client_addr)
+            log('SEND', r_seq, r_ack, r_flags, 0)
+            print(f'[SERVER] Connection closed')
+            board.save()
+            # Reset connection 
+            last_close = (client_addr, fin_pack)
+            state = 'LISTEN' 
+            client_addr, client_isn, server_isn, expect_seq = None, None, None, None 
+        elif (flags & FIN and state == 'LISTEN' and last_close is not None and addr == last_close[0]):
+            fin_pack = last_close[1]
+            r_seq, r_ack, r_flags, _ = unpack_msg(fin_pack)
+            send_unreliable(sock, fin_pack, addr)
+            log('SEND', r_seq, r_ack, r_flags, 0, 'duplicate FIN')
         # ============================================================
 
 if __name__ == '__main__':
