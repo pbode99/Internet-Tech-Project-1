@@ -102,7 +102,7 @@ class Scoreboard:
 # ============================================================
 
 def main():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock = socket.socket(socket.AF_INET, socket.sock_DGRAM)
     sock.bind(('0.0.0.0', ASSIGNED_PORT))
     print(f'[SERVER] Listening on 0.0.0.0:{ASSIGNED_PORT} (UDP)')
 
@@ -138,7 +138,29 @@ def main():
         # HINT: use seq_add() for every "+ 1" so numbers wrap at 2^32 like TCP.
         # HINT: if the client's final ACK is lost, its first DATA packet also carries
         #       the ACK flag and ack = y + 1. Treat that as completing the handshake too.
-        pass  # <-- replace with your handshake logic
+        if state != 'LISTEN' and addr != client_addr:
+            continue
+
+        if (flags == SYN and state == 'LISTEN'): 
+            client_addr, client_isn = addr, seq 
+            server_isn = random.randint(0, SEQ_MOD - 1)
+            print(f'[SERVER] server ISN y={y}')
+            state = 'SYN_RCVD'
+            r_seq , r_ack = server_isn, seq_add(client_isn, 1)
+            send_unreliable(sock, pack_msg(r_seq, r_ack, SYN | ACK), client_addr)
+            log('SEND', r_seq, r_ack, SYN | ACK, 0)
+        elif (flags == SYN and state == 'SYN_RCVD'): 
+            r_seq, r_ack = server_isn, seq_add(client_isn, 1)
+            send_unreliable(sock, pack_msg(r_seq, r_ack, SYN | ACK), client_addr)
+            log('SEND', r_seq, r_ack, SYN | ACK, 0, 'duplicate SYN')
+        elif (flags == ACK and state == 'SYN_RCVD'): 
+            # Check conditions for establishing connection
+            if (seq == seq_add(client_isn, 1) and ack == seq_add(server_isn, 1)): 
+                state = 'ESTABLISHED'
+                expect_seq = seq_add(client_isn, 1)
+                board = Scoreboard()
+                print(f'[SERVER] Connection established')
+            
         # ============================================================
 
         # ============ PHASE 2: DATA (YOU IMPLEMENT) =================
@@ -149,7 +171,17 @@ def main():
         #   - Else (duplicate or out of order):
         #       * do NOT deliver it; print that it was a duplicate
         #   - Either way, reply: seq = server_isn + 1, ack = expect_seq, flags = ACK
-        pass  # <-- replace with your data logic
+        if (state == 'ESTABLISHED' and len(pl) > 0): 
+            if (seq == expect_seq):
+                board.apply(pl.decode())
+                expect_seq = seq_add(seq, len(pl))
+                note = ''
+            else: 
+                print(f'[SERVER] ERROR: Duplicate seq number recieved')
+                note = 'duplicate'
+            r_seq, r_ack = seq_add(server_isn, 1), expect_seq 
+            send_unreliable(sock, pack_msg(r_seq, r_ack, ACK), client_addr)
+            log('SEND', r_seq, r_ack, ACK, 0, note)
         # ============================================================
 
         # ============ PHASE 3: TEARDOWN (YOU IMPLEMENT) =============
@@ -159,7 +191,10 @@ def main():
         #   - remember last_close = (client_addr, that FIN-ACK packet)
         #   - reset state: state='LISTEN'; client_addr=None; client_isn=None; server_isn=None; expect_seq=None
         #   - if a FIN arrives later from last_close's address, resend last_close's FIN-ACK
-        pass  # <-- replace with your teardown logic
+        if (flags == FIN && seq == expect_seq):
+            seq = seq_add(server_isn, 1) 
+            ack = 
+            send_unreliable(sock, pack_msg(ack_seq, ack_num, FIN | ACK), client_addr)
         # ============================================================
 
 if __name__ == '__main__':
