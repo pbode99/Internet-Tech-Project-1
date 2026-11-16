@@ -1,0 +1,118 @@
+[SERVER] Listening on 0.0.0.0:30011 (UDP)
+[SERVER] RECV seq=2448259619 ack=0 flags=SYN len=0
+[SERVER] server ISN y=1094907687
+[NET] reply delayed 967 ms (VAR review)
+[SERVER] SEND seq=1094907687 ack=2448259620 flags=SYN|ACK len=0
+[SERVER] RECV seq=2448259619 ack=0 flags=SYN len=0
+[SERVER] SEND seq=1094907687 ack=2448259620 flags=SYN|ACK len=0  (duplicate SYN)
+[SERVER] RECV seq=2448259620 ack=1094907688 flags=ACK len=0
+[SERVER] Connection established
+[SERVER] RECV seq=2448259620 ack=1094907688 flags=ACK len=60
+[MATCH] 0' KICKOFF ESP vs ARG at MetLife Stadium, East Rutherford NJ
+[NET] reply dropped
+[SERVER] SEND seq=1094907688 ack=2448259680 flags=ACK len=0
+[SERVER] RECV seq=2448259620 ack=1094907688 flags=ACK len=60
+[SERVER] ERROR: Duplicate seq number received
+[NET] reply delayed 879 ms (VAR review)
+[SERVER] SEND seq=1094907688 ack=2448259680 flags=ACK len=0  (duplicate)
+[SERVER] RECV seq=2448259620 ack=1094907688 flags=ACK len=60
+[SERVER] ERROR: Duplicate seq number received
+[SERVER] SEND seq=1094907688 ack=2448259680 flags=ACK len=0  (duplicate)
+[SERVER] RECV seq=2448259680 ack=1094907688 flags=ACK len=32
+[MATCH] 41' YELLOW ARG Lisandro Martinez
+[SERVER] SEND seq=1094907688 ack=2448259712 flags=ACK len=0
+[SERVER] RECV seq=2448259712 ack=1094907688 flags=ACK len=62
+[MATCH] 44' SUB ARG Nicolas Otamendi on for Lisandro Martinez (injury)
+[SERVER] SEND seq=1094907688 ack=2448259774 flags=ACK len=0
+[SERVER] RECV seq=2448259774 ack=1094907688 flags=ACK len=25
+[MATCH] 45+' HALFTIME ESP 0 ARG 0
+[NET] reply dropped
+[SERVER] SEND seq=1094907688 ack=2448259799 flags=ACK len=0
+[SERVER] RECV seq=2448259774 ack=1094907688 flags=ACK len=25
+[SERVER] ERROR: Duplicate seq number received
+[NET] reply dropped
+[SERVER] SEND seq=1094907688 ack=2448259799 flags=ACK len=0  (duplicate)
+[SERVER] RECV seq=2448259774 ack=1094907688 flags=ACK len=25
+[SERVER] ERROR: Duplicate seq number received
+[SERVER] SEND seq=1094907688 ack=2448259799 flags=ACK len=0  (duplicate)
+[SERVER] RECV seq=2448259799 ack=1094907688 flags=ACK len=51
+[MATCH] 46' SUB ARG Leandro Paredes on for Nicolas Gonzalez
+[SERVER] SEND seq=1094907688 ack=2448259850 flags=ACK len=0
+[SERVER] RECV seq=2448259850 ack=1094907688 flags=ACK len=30
+[MATCH] 52' YELLOW ARG Leandro Paredes
+[SERVER] SEND seq=1094907688 ack=2448259880 flags=ACK len=0
+[SERVER] RECV seq=2448259880 ack=1094907688 flags=ACK len=48
+[MATCH] 58' SUB ARG Nahuel Molina on for Gonzalo Montiel
+[NET] reply dropped
+[SERVER] SEND seq=1094907688 ack=2448259928 flags=ACK len=0
+[SERVER] RECV seq=2448259880 ack=1094907688 flags=ACK len=48
+[SERVER] ERROR: Duplicate seq number received
+[SERVER] SEND seq=1094907688 ack=2448259928 flags=ACK len=0  (duplicate)
+[SERVER] RECV seq=2448259928 ack=1094907688 flags=ACK len=36
+[MATCH] 62' SUB ESP Pedri on for Fabian Ruiz
+[SERVER] SEND seq=1094907688 ack=2448259964 flags=ACK len=0
+[SERVER] RECV seq=2448259964 ack=1094907688 flags=ACK len=48
+[MATCH] 62' SUB ESP Ferran Torres on for Mikel Oyarzabal
+[NET] reply delayed 204 ms (VAR review)
+[SERVER] SEND seq=1094907688 ack=2448260012 flags=ACK len=0
+[SERVER] RECV seq=2448260012 ack=1094907688 flags=ACK len=49
+[MATCH] 70' SUB ARG Facundo Medina on for Cristian Romero
+[SERVER] SEND seq=1094907688 ack=2448260061 flags=ACK len=0
+[SERVER] RECV seq=2448260061 ack=1094907688 flags=ACK len=51
+[MATCH] 70' SUB ARG Giuliano Simeone on for Rodrigo De Paul
+[NET] reply dropped
+[SERVER] SEND seq=1094907688 ack=2448260112 flags=ACK len=0
+[SERVER] RECV seq=2448260061 ack=1094907688 flags=ACK len=51
+[SERVER] ERROR: Duplicate seq number received
+[NET] reply dropped
+[SERVER] SEND seq=1094907688 ack=2448260112 flags=ACK len=0  (duplicate)
+[SERVER] RECV seq=2448260061 ack=1094907688 flags=ACK len=51
+[SERVER] ERROR: Duplicate seq number received
+[SERVER] SEND seq=1094907688 ack=2448260112 flags=ACK len=0  (duplicate)
+[SERVER] RECV seq=2448260112 ack=1094907688 flags=ACK len=41
+[MATCH] 75' SUB ESP Mikel Merino on for Dani Olmo
+[SERVER] SEND seq=1094907688 ack=2448260153 flags=ACK len=0
+[SERVER] RECV seq=2448260153 ack=1094907688 flags=ACK len=43
+[MATCH] 75' SUB ESP Nico Williams on for Alex Baena
+[SERVER] SEND seq=1094907688 ack=2448260196 flags=ACK len=0
+[SERVER] RECV seq=2448260196 ack=1094907688 flags=ACK len=39
+[MATCH] 82' YELLOW ARG Enzo Fernandez (dissent)
+[NET] reply delayed 532 ms (VAR review)
+[SERVER] SEND seq=1094907688 ack=2448260235 flags=ACK len=0
+[SERVER] RECV seq=2448260196 ack=1094907688 flags=ACK len=39
+[SERVER] ERROR: Duplicate seq number received
+[SERVER] SEND seq=1094907688 ack=2448260235 flags=ACK len=0  (duplicate)
+[SERVER] RECV seq=2448260235 ack=1094907688 flags=ACK len=43
+[MATCH] 90+3' RED ARG Enzo Fernandez, second yellow
+[SERVER] SEND seq=1094907688 ack=2448260278 flags=ACK len=0
+[SERVER] RECV seq=2448260278 ack=1094907688 flags=ACK len=46
+[MATCH] 90+' FULLTIME ESP 0 ARG 0, going to extra time
+[SERVER] SEND seq=1094907688 ack=2448260324 flags=ACK len=0
+[SERVER] RECV seq=2448260324 ack=1094907688 flags=ACK len=72
+[MATCH] 96' DISALLOWED ESP Nico Williams goal ruled out, Merino foul on Otamendi
+[SERVER] SEND seq=1094907688 ack=2448260396 flags=ACK len=0
+[SERVER] RECV seq=2448260396 ack=1094907688 flags=ACK len=41
+[MATCH] 99' SUB ESP Martin Zubimendi on for Rodri
+[SERVER] SEND seq=1094907688 ack=2448260437 flags=ACK len=0
+[SERVER] RECV seq=2448260437 ack=1094907688 flags=ACK len=46
+[MATCH] 99' SUB ESP Eric Garcia on for Aymeric Laporte
+[SERVER] SEND seq=1094907688 ack=2448260483 flags=ACK len=0
+[SERVER] RECV seq=2448260483 ack=1094907688 flags=ACK len=48
+[MATCH] 102' SUB ARG Marcos Senesi on for Julian Alvarez
+[SERVER] SEND seq=1094907688 ack=2448260531 flags=ACK len=0
+[SERVER] RECV seq=2448260531 ack=1094907688 flags=ACK len=37
+[MATCH] 105+' EXTRA-TIME HALFTIME ESP 0 ARG 0
+[SERVER] SEND seq=1094907688 ack=2448260568 flags=ACK len=0
+[SERVER] RECV seq=2448260568 ack=1094907688 flags=ACK len=52
+[MATCH] 106' GOAL ESP Ferran Torres, set up by Nico Williams   >>> ESP 1  ARG 0
+[SERVER] SEND seq=1094907688 ack=2448260620 flags=ACK len=0
+[SERVER] RECV seq=2448260620 ack=1094907688 flags=ACK len=60
+[MATCH] 113' DISALLOWED ESP Ferran Torres goal ruled out for offside
+[SERVER] SEND seq=1094907688 ack=2448260680 flags=ACK len=0
+[SERVER] RECV seq=2448260680 ack=1094907688 flags=ACK len=58
+[MATCH] 120+' FINAL WHISTLE ESP 1 ARG 0, Spain are world champions
+[SERVER] SEND seq=1094907688 ack=2448260738 flags=ACK len=0
+[SERVER] RECV seq=2448260738 ack=1094907688 flags=FIN len=0
+[SERVER] SEND seq=1094907688 ack=2448260739 flags=FIN|ACK len=0
+[SERVER] Connection closed
+[MATCH] FINAL SCORE: ESP 1  ARG 0   (events saved to received_feed.txt)

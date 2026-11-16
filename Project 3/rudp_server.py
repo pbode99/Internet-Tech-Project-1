@@ -178,7 +178,7 @@ def main():
                 expect_seq = seq_add(seq, len(pl))
                 note = ''
             else: 
-                print(f'[SERVER] ERROR: Duplicate seq number recieved')
+                print(f'[SERVER] ERROR: Duplicate seq number received')
                 note = 'duplicate'
             r_seq, r_ack, r_flags = seq_add(server_isn, 1), expect_seq , ACK
             send_unreliable(sock, pack_msg(r_seq, r_ack, r_flags), client_addr)
